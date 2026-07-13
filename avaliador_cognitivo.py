@@ -4,14 +4,21 @@ from huggingface_hub import InferenceClient
 client = InferenceClient()
 
 def analisar_turno_com_qwen(mensagem_jogador: str, resposta_filosofo: str) -> dict:
+    """
+    Consome o modelo Qwen para avaliar a interação e orquestrar a State Machine do jogo.
+    """
     prompt_sistema = (
-        "É um algoritmo de análise semântica num motor de jogo educativo. "
-        "A tua função é avaliar o turno de diálogo e devolver estritamente um objeto JSON válido.\n"
+        "Você é um algoritmo de análise cognitiva atuando no jogo educativo de escolhas éticas 'O Gabarito'. "
+        "A sua função é avaliar o diálogo entre o Jogador e o Filósofo sobre o dilema escolar (passar cola/gabarito) e devolver estritamente um objeto JSON válido.\n\n"
         "Estrutura requerida:\n"
         "{\n"
         '  "perfil_cognitivo": "crítico" | "dogmático" | "superficial",\n'
         '  "proximo_estado": "manter_fase" | "avancar_fase" | "game_over"\n'
-        "}"
+        "}\n\n"
+        "Regras de transição do Estado:\n"
+        "- avancar_fase: Se o aluno apresentou uma justificativa madura e argumentada, mesmo que não seja a moralmente perfeita.\n"
+        "- game_over: Se o aluno foi incrivelmente imoral, incentivou crimes ou ignorou completamente a reflexão.\n"
+        "- manter_fase: Se o argumento foi muito curto ('sim', 'não sei'), superficial e ele precisa reformular sua resposta perante o filósofo."
     )
 
     conteudo_analise = f"Jogador: {mensagem_jogador}\nFilósofo: {resposta_filosofo}"
