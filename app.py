@@ -19,6 +19,7 @@ ORIGENS_PERMITIDAS = [
     "https://educapes.capes.gov.br",
     "http://localhost:8080",      # Permitido para seus testes em localhost
     "http://127.0.0.1:8080"
+    "*"
 ]
 
 app.add_middleware(
