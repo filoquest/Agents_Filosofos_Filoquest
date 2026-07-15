@@ -1,74 +1,87 @@
-import traceback
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+import os
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-import gradio as gr
+from pydantic import BaseModel
+from typing import List, Dict, Any
+import uvicorn
 
-from motores_filosoficos import conversar_com_filosofo
-from avaliador_cognitivo import analisar_turno_com_qwen
+# Supondo que você tenha os arquivos com as lógicas separadas
+from motores_filosoficos import consultar_filosofo
+from avaliador_cognitivo import analisar_maturidade
 
-app = FastAPI(title="Motor Backend - FiloQuest")
+app = FastAPI(title="Motor Agente FiloQuest API")
 
-# =====================================================================
-# MODIFICAÇÃO DE CIBERSEGURANÇA: POLÍTICA ESTRITA DE CORS
-# =====================================================================
-# Modifique esta lista inserindo os domínios onde as IFs reais estarão publicadas.
-# Isso impede que agentes externos abusem do consumo da sua cota computacional.
+# --- CONFIGURAÇÃO DE SEGURANÇA (CORS) ---
+# Permite que o seu Twine acesse a API.
+# Adicione a URL do seu jogo publicado quando ele estiver pronto.
 ORIGENS_PERMITIDAS = [
     "https://filoquest.uern.br",
     "https://educapes.capes.gov.br",
-    "http://localhost:8080",      # Permitido para seus testes em localhost
-    "http://127.0.0.1:8080"
+    "https://filoquest.uern.br/O_Gabarito_Jogo.html",
     "*"
-]
+    ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ORIGENS_PERMITIDAS,
     allow_credentials=True,
-    allow_methods=["POST", "GET"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
-class TurnoRequisicao(BaseModel):
+
+# --- MODELOS DE DADOS (Pydantic) ---
+# Define exatamente o formato que o Twine deve enviar
+class TurnoRequest(BaseModel):
     filosofo_atual: str
     mensagem_jogador: str
-    historico: list
+    historico: List[Dict[str, str]] = []
 
+
+# --- ROTA PRINCIPAL DA API ---
 @app.post("/api/jogar_turno")
-async def orquestrar_turno(req: TurnoRequisicao):
+async def processar_turno(request: TurnoRequest):
     try:
-        resposta_ia = conversar_com_filosofo(req.filosofo_atual, req.historico)
+        # 1. Aciona o LLM (ex: Llama 3) para incorporar o filósofo escolhido
+        resposta_filosofo = consultar_filosofo(
+            request.filosofo_atual,
+            request.mensagem_jogador,
+            request.historico
+        )
 
-        if "Erro na comunicação" in resposta_ia:
-            raise HTTPException(status_code=502, detail=resposta_ia)
+        # 2. Aciona o LLM Avaliador (ex: Qwen) para dar a nota cognitiva
+        analise_cognitiva = analisar_maturidade(
+            request.mensagem_jogador,
+            request.historico
+        )
 
-        avaliacao_estado = analisar_turno_com_qwen(req.mensagem_jogador, resposta_ia)
-
+        # 3. Empacota tudo e devolve para o Twine
         return {
-            "fala_filosofo": resposta_ia,
-            "analise": avaliacao_estado
+            "fala_filosofo": resposta_filosofo,
+            "analise": {
+                "perfil_cognitivo": analise_cognitiva.get("perfil", "indeterminado"),
+                "proximo_estado": analise_cognitiva.get("estado", "manter_fase")
+            }
         }
 
-    except ValueError as ve:
-        raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
-        print("\n[ERRO CRÍTICO NO BACKEND] O motor falhou. Rastreio:")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Erro interno no servidor: {e}")
+        print(f"Erro no servidor: {str(e)}")
+        return {
+            "fala_filosofo": "Houve uma perturbação na linha de raciocínio. Os filósofos não puderam responder.",
+            "analise": {
+                "perfil_cognitivo": "indeterminado",
+                "proximo_estado": "manter_fase"
+            }
+        }
 
-# =====================================================================
-# ADAPTAÇÃO COMPATÍVEL COM O GRADIO SPACES (HEALTH CHECK)
-# =====================================================================
-def interface_estatica():
-    return "A infraestrutura do motor FiloQuest está operacional."
 
-interface_fantasma = gr.Interface(
-    fn=interface_estatica,
-    inputs=None,
-    outputs="text",
-    title="FiloQuest Backend API",
-    description="Interface operacional na nuvem. Tráfego externo aceito apenas via requisições HTTP POST controladas por CORS para o endpoint público: /api/jogar_turno."
-)
+# Rota simples apenas para verificar se a API está "acordada"
+@app.get("/")
+def read_root():
+    return {"status": "A academia filosófica está online."}
 
-app = gr.mount_gradio_app(app, interface_fantasma, path="/")
+
+# O Render precisa disso para iniciar o servidor
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
