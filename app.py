@@ -1,25 +1,23 @@
 import os
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import List, Dict
 import uvicorn
 
-# Supondo que você tenha os arquivos com as lógicas separadas
-from motores_filosoficos import consultar_filosofo
-from avaliador_cognitivo import analisar_maturidade
+# Importando os nomes reais das funções conforme os seus arquivos
+from motores_filosoficos import conversar_com_filosofo
+from avaliador_cognitivo import analisar_turno_com_qwen
 
 app = FastAPI(title="Motor Agente FiloQuest API")
 
 # --- CONFIGURAÇÃO DE SEGURANÇA (CORS) ---
-# Permite que o seu Twine acesse a API.
-# Adicione a URL do seu jogo publicado quando ele estiver pronto.
 ORIGENS_PERMITIDAS = [
     "https://filoquest.uern.br",
     "https://educapes.capes.gov.br",
     "https://filoquest.uern.br/O_Gabarito_Jogo.html",
     "*"
-    ]
+]
 
 app.add_middleware(
     CORSMiddleware,
@@ -29,38 +27,35 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # --- MODELOS DE DADOS (Pydantic) ---
-# Define exatamente o formato que o Twine deve enviar
 class TurnoRequest(BaseModel):
     filosofo_atual: str
     mensagem_jogador: str
     historico: List[Dict[str, str]] = []
 
-
 # --- ROTA PRINCIPAL DA API ---
 @app.post("/api/jogar_turno")
 async def processar_turno(request: TurnoRequest):
     try:
-        # 1. Aciona o LLM (ex: Llama 3) para incorporar o filósofo escolhido
-        resposta_filosofo = consultar_filosofo(
+        # 1. Aciona o LLM (ex: Llama 3) usando o nome real da função
+        # O Twine já envia a mensagem do jogador embutida no histórico
+        resposta_filosofo = conversar_com_filosofo(
             request.filosofo_atual,
-            request.mensagem_jogador,
             request.historico
         )
 
-        # 2. Aciona o LLM Avaliador (ex: Qwen) para dar a nota cognitiva
-        analise_cognitiva = analisar_maturidade(
+        # 2. Aciona o LLM Avaliador (ex: Qwen) usando o nome real da função
+        analise_cognitiva = analisar_turno_com_qwen(
             request.mensagem_jogador,
-            request.historico
+            resposta_filosofo
         )
 
-        # 3. Empacota tudo e devolve para o Twine
+        # 3. Empacota tudo e devolve para o Twine (Buscando as chaves corretas do Qwen)
         return {
             "fala_filosofo": resposta_filosofo,
             "analise": {
-                "perfil_cognitivo": analise_cognitiva.get("perfil", "indeterminado"),
-                "proximo_estado": analise_cognitiva.get("estado", "manter_fase")
+                "perfil_cognitivo": analise_cognitiva.get("perfil_cognitivo", "indeterminado"),
+                "proximo_estado": analise_cognitiva.get("proximo_estado", "manter_fase")
             }
         }
 
@@ -74,12 +69,10 @@ async def processar_turno(request: TurnoRequest):
             }
         }
 
-
-# Rota simples apenas para verificar se a API está "acordada"
+# Rota simples para verificar o status da API no navegador
 @app.get("/")
 def read_root():
     return {"status": "A academia filosófica está online."}
-
 
 # O Render precisa disso para iniciar o servidor
 if __name__ == "__main__":
