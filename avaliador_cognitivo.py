@@ -1,11 +1,11 @@
 import os
 import json
-from google import genai
-from google.genai import types
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
 
-chave_api = os.environ.get("GEMINI_API_KEY")
-client = genai.Client(api_key=chave_api)
+import google.generativeai as genai
 
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 def analisar_turno_com_qwen(mensagem_jogador: str, resposta_filosofo: str) -> dict:
     prompt_sistema = (
@@ -25,15 +25,13 @@ def analisar_turno_com_qwen(mensagem_jogador: str, resposta_filosofo: str) -> di
     conteudo_analise = f"{prompt_sistema}\n\nJogador: {mensagem_jogador}\nFilósofo: {resposta_filosofo}"
 
     try:
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=conteudo_analise,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-            )
+        # Usa o modelo 1.5-flash forçando a saída em JSON
+        modelo_avaliador = genai.GenerativeModel(
+            'gemini-1.5-flash',
+            generation_config={"response_mime_type": "application/json"}
         )
-
-        texto_limpo = response.text.strip()
+        resposta = modelo_avaliador.generate_content(conteudo_analise)
+        texto_limpo = resposta.text.strip()
         return json.loads(texto_limpo)
 
     except Exception as e:
