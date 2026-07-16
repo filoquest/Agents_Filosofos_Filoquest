@@ -1,6 +1,4 @@
 fastapi
 uvicorn[standard]
 pydantic
-huggingface-hub
 google-generativeai
-langchain
