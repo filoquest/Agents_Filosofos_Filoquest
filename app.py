@@ -11,8 +11,9 @@ from avaliador_cognitivo import analisar_turno_com_qwen
 
 app = FastAPI(title="Motor Agente FiloQuest API")
 
-# Inicializa o cliente do Gemini para a função de escolha automática
-client = genai.Client()
+# Inicializa o cliente do Gemini puxando a chave com segurança
+chave_api = os.environ.get("GEMINI_API_KEY")
+client = genai.Client(api_key=chave_api)
 
 # Configuração de CORS
 ORIGENS_PERMITIDAS = ["https://filoquest.uern.br", "https://educapes.capes.gov.br", "*"]
@@ -69,22 +70,22 @@ async def processar_turno(request: TurnoRequest):
         if filosofo_escolhido == "auto":
             filosofo_escolhido = selecionar_filosofo_automatico(request.mensagem_jogador)
 
-        # 1. Pega o nome de exibição correto do filósofo (ex: "Immanuel Kant")
+        # Pega o nome de exibição correto do filósofo (ex: "Immanuel Kant")
         nome_exibicao = PERSONAS_FILOSOFICAS[filosofo_escolhido]["nome"]
 
-        # 2. Aciona o filósofo escolhido
+        # Aciona o filósofo escolhido
         resposta_filosofo = conversar_com_filosofo(
             filosofo_escolhido,
             request.historico
         )
 
-        # 3. Aciona o Avaliador Cognitivo
+        # Aciona o Avaliador Cognitivo
         analise_cognitiva = analisar_turno_com_qwen(
             request.mensagem_jogador,
             resposta_filosofo
         )
 
-        # Devolvemos também o 'filosofo_nome' para o Twine atualizar a interface
+        # Devolvemos para o Twine
         return {
             "fala_filosofo": resposta_filosofo,
             "filosofo_nome": nome_exibicao,
@@ -98,7 +99,7 @@ async def processar_turno(request: TurnoRequest):
         print(f"Erro no servidor: {str(e)}")
         return {
             "fala_filosofo": "Houve uma perturbação na linha de raciocínio. Os filósofos se retiraram.",
-            "filosofo_nome": "Immanuel Kant",
+            "filosofo_nome": "A Direção",
             "analise": {"perfil_cognitivo": "indeterminado", "proximo_estado": "manter_fase"}
         }
 
