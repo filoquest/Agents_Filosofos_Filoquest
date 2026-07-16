@@ -1,14 +1,9 @@
 import os
-import warnings
-
-# Esta linha mágica silencia o aviso amarelo do Google no console!
-warnings.filterwarnings("ignore", category=FutureWarning)
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict
-import google.generativeai as genai
+from google import genai
 
 # Importando as lógicas dos seus ficheiros
 from motores_filosoficos import conversar_com_filosofo, PERSONAS_FILOSOFICAS
@@ -16,9 +11,9 @@ from avaliador_cognitivo import analisar_turno_com_qwen
 
 app = FastAPI(title="Motor Agente FiloQuest API")
 
-# Inicializa o cliente do Gemini usando a biblioteca clássica e estável
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-modelo_orquestrador = genai.GenerativeModel('gemini-1.5-flash')
+# Inicializa o cliente do Gemini com a nova biblioteca
+chave_api = os.environ.get("GEMINI_API_KEY")
+client = genai.Client(api_key=chave_api)
 
 # Configuração de CORS
 ORIGENS_PERMITIDAS = ["https://filoquest.uern.br", "https://educapes.capes.gov.br", "*"]
@@ -48,13 +43,17 @@ def selecionar_filosofo_automatico(mensagem_aluno: str) -> str:
         "Responda APENAS com a palavra chave em letras minúsculas: kant, mill ou aristoteles."
     )
     try:
-        resposta = modelo_orquestrador.generate_content(prompt)
-        escolha = resposta.text.strip().lower()
+        # Usando o modelo rápido e gratuito 1.5-flash-8b
+        response = client.models.generate_content(
+            model='gemini-1.5-flash-8b',
+            contents=prompt
+        )
+        escolha = response.text.strip().lower()
         if escolha in ['kant', 'mill', 'aristoteles']:
             return escolha
     except Exception as e:
         print(f"Erro na escolha automática: {e}")
-    return "kant"  # Fallback de segurança
+    return "kant"
 
 
 @app.post("/api/jogar_turno")
