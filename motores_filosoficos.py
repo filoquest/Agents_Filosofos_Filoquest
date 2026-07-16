@@ -1,9 +1,9 @@
 import os
 from google import genai
 
-# Inicializa o cliente com o novo SDK do Google (ele puxa a GEMINI_API_KEY automaticamente)
-client = genai.Client()
-
+# Puxa a chave explicitamente do ambiente e injeta no Cliente
+chave_api = os.environ.get("GEMINI_API_KEY")
+client = genai.Client(api_key=chave_api)
 # =====================================================================
 # CONFIGURAÇÃO DOS AGENTES ADAPTADA PARA "O GABARITO"
 # =====================================================================

@@ -3,8 +3,9 @@ import json
 from google import genai
 from google.genai import types
 
-# Inicializa o cliente
-client = genai.Client()
+# Puxa a chave explicitamente do ambiente e injeta no Cliente
+chave_api = os.environ.get("GEMINI_API_KEY")
+client = genai.Client(api_key=chave_api)
 
 
 def analisar_turno_com_qwen(mensagem_jogador: str, resposta_filosofo: str) -> dict:
