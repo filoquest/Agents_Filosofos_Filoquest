@@ -1,10 +1,11 @@
 import os
 import json
-from google import genai
-from google.genai import types
+import warnings
 
-chave_api = os.environ.get("GEMINI_API_KEY")
-client = genai.Client(api_key=chave_api)
+warnings.filterwarnings("ignore", category=FutureWarning)
+import google.generativeai as genai
+
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 
 def analisar_turno_com_qwen(mensagem_jogador: str, resposta_filosofo: str) -> dict:
@@ -25,16 +26,19 @@ def analisar_turno_com_qwen(mensagem_jogador: str, resposta_filosofo: str) -> di
     conteudo_analise = f"{prompt_sistema}\n\nJogador: {mensagem_jogador}\nFilósofo: {resposta_filosofo}"
 
     try:
-        response = client.models.generate_content(
-            model='gemini-1.5-flash-8b',
-            contents=conteudo_analise,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-            )
-        )
+        # Usando o modelo universal gemini-pro
+        modelo_avaliador = genai.GenerativeModel('gemini-pro')
+        resposta = modelo_avaliador.generate_content(conteudo_analise)
 
-        texto_limpo = response.text.strip()
-        return json.loads(texto_limpo)
+        texto_limpo = resposta.text.strip()
+
+        # Limpa as crases de formatação Markdown que o modelo Pro às vezes adiciona
+        if texto_limpo.startswith("```json"):
+            texto_limpo = texto_limpo[7:]
+        if texto_limpo.endswith("```"):
+            texto_limpo = texto_limpo[:-3]
+
+        return json.loads(texto_limpo.strip())
 
     except Exception as e:
         print(f"Erro na API do Gemini (Avaliador): {e}")

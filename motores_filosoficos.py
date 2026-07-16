@@ -1,8 +1,12 @@
 import os
-from google import genai
+import warnings
 
-chave_api = os.environ.get("GEMINI_API_KEY")
-client = genai.Client(api_key=chave_api)
+warnings.filterwarnings("ignore", category=FutureWarning)
+import google.generativeai as genai
+
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+# Usando o modelo universal e 100% garantido
+modelo_filosofo = genai.GenerativeModel('gemini-pro')
 
 PERSONAS_FILOSOFICAS = {
     "kant": {
@@ -60,12 +64,8 @@ def conversar_com_filosofo(filosofo_chave: str, historico_chat: list) -> str:
     prompt_completo = f"Instruções de Personalidade:\n{instrucao_sistema}\n\nHistórico da Conversa até agora:\n{transcricao}\n\nResponda agora como o Filósofo:"
 
     try:
-        response = client.models.generate_content(
-            model='gemini-1.5-flash-8b',
-            contents=prompt_completo
-        )
-        return response.text
-
+        resposta = modelo_filosofo.generate_content(prompt_completo)
+        return resposta.text
     except Exception as e:
         print(f"Erro na API do Gemini (Motor): {e}")
         return "Os ventos de Atenas falharam hoje. O filósofo encontra-se em silêncio obsequioso devido a uma falha na academia."
