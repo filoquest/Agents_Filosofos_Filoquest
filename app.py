@@ -15,8 +15,8 @@ from avaliador_cognitivo import analisar_turno_com_qwen
 app = FastAPI(title="Motor Agente FiloQuest API")
 
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-# Usando o modelo universal e 100% garantido
-modelo_orquestrador = genai.GenerativeModel('gemini-pro')
+# O modelo oficial atual do plano gratuito
+modelo_orquestrador = genai.GenerativeModel('gemini-1.5-flash')
 
 ORIGENS_PERMITIDAS = ["https://filoquest.uern.br", "https://educapes.capes.gov.br", "*"]
 app.add_middleware(

@@ -5,8 +5,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 import google.generativeai as genai
 
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-# Usando o modelo universal e 100% garantido
-modelo_filosofo = genai.GenerativeModel('gemini-pro')
+modelo_filosofo = genai.GenerativeModel('gemini-1.5-flash')
 
 PERSONAS_FILOSOFICAS = {
     "kant": {

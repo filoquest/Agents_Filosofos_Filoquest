@@ -26,19 +26,15 @@ def analisar_turno_com_qwen(mensagem_jogador: str, resposta_filosofo: str) -> di
     conteudo_analise = f"{prompt_sistema}\n\nJogador: {mensagem_jogador}\nFilósofo: {resposta_filosofo}"
 
     try:
-        # Usando o modelo universal gemini-pro
-        modelo_avaliador = genai.GenerativeModel('gemini-pro')
+        # Modo JSON nativo do 1.5-flash
+        modelo_avaliador = genai.GenerativeModel(
+            'gemini-1.5-flash',
+            generation_config={"response_mime_type": "application/json"}
+        )
         resposta = modelo_avaliador.generate_content(conteudo_analise)
-
         texto_limpo = resposta.text.strip()
 
-        # Limpa as crases de formatação Markdown que o modelo Pro às vezes adiciona
-        if texto_limpo.startswith("```json"):
-            texto_limpo = texto_limpo[7:]
-        if texto_limpo.endswith("```"):
-            texto_limpo = texto_limpo[:-3]
-
-        return json.loads(texto_limpo.strip())
+        return json.loads(texto_limpo)
 
     except Exception as e:
         print(f"Erro na API do Gemini (Avaliador): {e}")
