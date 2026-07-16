@@ -1,11 +1,8 @@
 import os
-import google.generativeai as genai
+from google import genai
 
-# Configura a chave de API puxando das variáveis de ambiente do Render
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-
-# Inicializa o modelo rápido e gratuito do Google
-modelo_gemini = genai.GenerativeModel('gemini-1.5-flash')
+# Inicializa o cliente com o novo SDK do Google (ele puxa a GEMINI_API_KEY automaticamente)
+client = genai.Client()
 
 # =====================================================================
 # CONFIGURAÇÃO DOS AGENTES ADAPTADA PARA "O GABARITO"
@@ -33,17 +30,28 @@ PERSONAS_FILOSOFICAS = {
             "- Regra 3: Critique a ideia de que a lealdade a uma pessoa justifica o dano à sociedade.\n"
             "Seja analítico, pragmático e direto. Limite sua resposta a dois ou três parágrafos curtos."
         )
+    },
+    "aristoteles": {
+        "nome": "Aristóteles de Estagira",
+        "system_prompt": (
+            "Você é o filósofo grego Aristóteles. Avalie as decisões do aluno no jogo 'O Gabarito' com base na Ética das Virtudes "
+            "e no conceito de Amizade Verdadeira (Philia).\n"
+            "- Regra 1: A verdadeira amizade baseia-se na busca mútua pelo bem e pela excelência do caráter. Facilitar uma trapaça "
+            "escolar para o Lucas não é um ato de amizade virtuosa, mas uma relação de mera utilidade ou conveniência que corrompe o caráter de ambos.\n"
+            "- Regra 2: A virtude moral está no 'justo meio' (a justa medida) entre dois extremos viciosos (o excesso e a falta). A honestidade "
+            "e a justiça são excelências que devem ser cultivadas pelo hábito prático.\n"
+            "- Regra 3: Questione o aluno sobre que tipo de caráter ele está construindo para si mesmo e se ele está ajudando "
+            "o seu amigo a florescer em direção à felicidade real (Eudaimonia) ou a se acomodar nos vícios da negligência e da mentira.\n"
+            "Seja reflexivo, equilibrado, pedagógico e use o tom de um mentor sábio. Limite sua resposta a dois ou três parágrafos curtos."
+        )
     }
 }
 
 
-# =====================================================================
-# MOTOR DE CONVERSAÇÃO (AGENTE PERSONA) - GEMINI
-# =====================================================================
 def conversar_com_filosofo(filosofo_chave: str, historico_chat: list) -> str:
     """
-    Traduz o histórico do Twine para a sintaxe do Gemini e gera a resposta.
-    O histórico esperado é uma lista de dicionários: [{'role': 'user', 'content': '...'}, ...]
+    Transforma o histórico do Twine em um script de teatro para evitar erros de bloqueio do Google,
+    e gera a resposta usando o novo SDK.
     """
     if filosofo_chave not in PERSONAS_FILOSOFICAS:
         raise ValueError(f"Filósofo '{filosofo_chave}' não está configurado.")
@@ -51,25 +59,22 @@ def conversar_com_filosofo(filosofo_chave: str, historico_chat: list) -> str:
     config = PERSONAS_FILOSOFICAS[filosofo_chave]
     instrucao_sistema = config["system_prompt"]
 
-    # O Gemini usa o papel "model" em vez de "assistant"
-    mensagens_gemini = []
+    # Transforma a lista de dicionários em um texto contínuo (Blindagem contra erros do Gemini)
+    transcricao = ""
     for msg in historico_chat:
-        role = "user" if msg["role"] == "user" else "model"
-        mensagens_gemini.append({"role": role, "parts": [msg["content"]]})
+        quem = "Aluno" if msg["role"] == "user" else "Filósofo"
+        transcricao += f"{quem}: {msg['content']}\n\n"
 
-    # Extrai a última mensagem do usuário para enviar agora
-    semente_atual = mensagens_gemini.pop() if mensagens_gemini else {"role": "user", "parts": ["Olá"]}
+    prompt_completo = f"Instruções de Personalidade:\n{instrucao_sistema}\n\nHistórico da Conversa até agora:\n{transcricao}\n\nResponda agora como o Filósofo:"
 
     try:
-        # Inicia um chat com o Gemini, injetando as instruções do sistema
-        chat = modelo_gemini.start_chat(history=mensagens_gemini)
-
-        # Envia a instrução do filósofo + a mensagem do aluno
-        prompt_completo = f"Instruções do Sistema: {instrucao_sistema}\n\nMensagem do Aluno: {semente_atual['parts'][0]}"
-
-        resposta = chat.send_message(prompt_completo)
-        return resposta.text
+        # Usa o modelo Flash mais recente (2.0)
+        response = client.models.generate_content(
+            model='gemini-2.0-flash',
+            contents=prompt_completo
+        )
+        return response.text
 
     except Exception as e:
         print(f"Erro na API do Gemini (Motor): {e}")
-        return "Os ventos de Atenas falharam hoje. O filósofo encontra-se em silêncio obsequioso devido a uma falha de energia na academia."
+        return "Os ventos de Atenas falharam hoje. O filósofo encontra-se em silêncio obsequioso devido a uma falha na academia."
