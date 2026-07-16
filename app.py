@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict
-from google import genai
+import google.generativeai as genai
 
 # Importando as lógicas dos seus ficheiros
 from motores_filosoficos import conversar_com_filosofo, PERSONAS_FILOSOFICAS
@@ -11,9 +11,9 @@ from avaliador_cognitivo import analisar_turno_com_qwen
 
 app = FastAPI(title="Motor Agente FiloQuest API")
 
-# Inicializa o cliente do Gemini puxando a chave com segurança
-chave_api = os.environ.get("GEMINI_API_KEY")
-client = genai.Client(api_key=chave_api)
+# Inicializa o cliente do Gemini usando a biblioteca clássica e estável
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+modelo_orquestrador = genai.GenerativeModel('gemini-1.5-flash')
 
 # Configuração de CORS
 ORIGENS_PERMITIDAS = ["https://filoquest.uern.br", "https://educapes.capes.gov.br", "*"]
@@ -33,10 +33,6 @@ class TurnoRequest(BaseModel):
 
 
 def selecionar_filosofo_automatico(mensagem_aluno: str) -> str:
-    """
-    IA Inteligente: Avalia a resposta do aluno e escolhe o filósofo que vai
-    gerar o melhor embate ou contraponto ético para desafiar o pensamento dele.
-    """
     prompt = (
         "Você é o orquestrador do jogo educativo 'O Gabarito'. Um aluno deu a seguinte justificativa "
         "para ter agido (ou não) numa trapaça escolar com gabaritos:\n"
@@ -49,12 +45,8 @@ def selecionar_filosofo_automatico(mensagem_aluno: str) -> str:
         "Responda APENAS com a palavra chave em letras minúsculas: kant, mill ou aristoteles."
     )
     try:
-        # Uso do modelo 1.5-flash para evitar limites de cota (Rate Limit)
-        response = client.models.generate_content(
-            model='gemini-1.5-flash',
-            contents=prompt
-        )
-        escolha = response.text.strip().lower()
+        resposta = modelo_orquestrador.generate_content(prompt)
+        escolha = resposta.text.strip().lower()
         if escolha in ['kant', 'mill', 'aristoteles']:
             return escolha
     except Exception as e:
@@ -67,26 +59,15 @@ async def processar_turno(request: TurnoRequest):
     try:
         filosofo_escolhido = request.filosofo_atual
 
-        # Se veio "auto" do Twine, a IA faz o julgamento e decide quem vai falar
         if filosofo_escolhido == "auto":
             filosofo_escolhido = selecionar_filosofo_automatico(request.mensagem_jogador)
 
-        # Pega o nome de exibição correto do filósofo (ex: "Immanuel Kant")
         nome_exibicao = PERSONAS_FILOSOFICAS[filosofo_escolhido]["nome"]
 
-        # Aciona o filósofo escolhido
-        resposta_filosofo = conversar_com_filosofo(
-            filosofo_escolhido,
-            request.historico
-        )
+        resposta_filosofo = conversar_com_filosofo(filosofo_escolhido, request.historico)
 
-        # Aciona o Avaliador Cognitivo
-        analise_cognitiva = analisar_turno_com_qwen(
-            request.mensagem_jogador,
-            resposta_filosofo
-        )
+        analise_cognitiva = analisar_turno_com_qwen(request.mensagem_jogador, resposta_filosofo)
 
-        # Devolvemos para o Twine
         return {
             "fala_filosofo": resposta_filosofo,
             "filosofo_nome": nome_exibicao,
@@ -112,4 +93,6 @@ def read_root():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
+    import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=port)

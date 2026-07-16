@@ -1,13 +1,9 @@
 import os
-from google import genai
+import google.generativeai as genai
 
-# Puxa a chave explicitamente do ambiente e injeta no Cliente
-chave_api = os.environ.get("GEMINI_API_KEY")
-client = genai.Client(api_key=chave_api)
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+modelo_filosofo = genai.GenerativeModel('gemini-1.5-flash')
 
-# =====================================================================
-# CONFIGURAÇÃO DOS AGENTES ADAPTADA PARA "O GABARITO"
-# =====================================================================
 PERSONAS_FILOSOFICAS = {
     "kant": {
         "nome": "Immanuel Kant",
@@ -50,17 +46,13 @@ PERSONAS_FILOSOFICAS = {
 
 
 def conversar_com_filosofo(filosofo_chave: str, historico_chat: list) -> str:
-    """
-    Transforma o histórico do Twine num guião de teatro para evitar erros de bloqueio do Google,
-    e gera a resposta usando o modelo 1.5-flash.
-    """
     if filosofo_chave not in PERSONAS_FILOSOFICAS:
         raise ValueError(f"Filósofo '{filosofo_chave}' não está configurado.")
 
     config = PERSONAS_FILOSOFICAS[filosofo_chave]
     instrucao_sistema = config["system_prompt"]
 
-    # Transforma a lista de dicionários num texto contínuo (Blindagem)
+    # Blindagem de histórico
     transcricao = ""
     for msg in historico_chat:
         quem = "Aluno" if msg["role"] == "user" else "Filósofo"
@@ -69,12 +61,8 @@ def conversar_com_filosofo(filosofo_chave: str, historico_chat: list) -> str:
     prompt_completo = f"Instruções de Personalidade:\n{instrucao_sistema}\n\nHistórico da Conversa até agora:\n{transcricao}\n\nResponda agora como o Filósofo:"
 
     try:
-        # Usa o modelo 1.5-flash garantindo estabilidade no plano gratuito
-        response = client.models.generate_content(
-            model='gemini-1.5-flash',
-            contents=prompt_completo
-        )
-        return response.text
+        resposta = modelo_filosofo.generate_content(prompt_completo)
+        return resposta.text
 
     except Exception as e:
         print(f"Erro na API do Gemini (Motor): {e}")
