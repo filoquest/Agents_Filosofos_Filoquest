@@ -10,7 +10,8 @@ client = genai.Client(api_key=chave_api)
 
 def analisar_turno_com_qwen(mensagem_jogador: str, resposta_filosofo: str) -> dict:
     """
-    Usa o Gemini 2.0 Flash no modo JSON para avaliar a maturidade da justificativa.
+    Usa o Gemini 1.5 Flash no modo JSON para avaliar a maturidade da justificativa.
+    (O nome da função manteve-se para compatibilidade).
     """
     prompt_sistema = (
         "Você é um algoritmo de análise cognitiva atuando no jogo de escolhas éticas 'O Gabarito'. "
@@ -18,7 +19,7 @@ def analisar_turno_com_qwen(mensagem_jogador: str, resposta_filosofo: str) -> di
         "Regras de transição do Estado:\n"
         "- avancar_fase: Se o aluno apresentou uma justificativa madura e argumentada, mesmo que não seja a moralmente perfeita.\n"
         "- game_over: Se o aluno foi incrivelmente imoral, incentivou crimes ou ignorou completamente a reflexão.\n"
-        "- manter_fase: Se o argumento foi muito curto, superficial e ele precisa reformular sua resposta perante o filósofo.\n\n"
+        "- manter_fase: Se o argumento foi muito curto, superficial e ele precisa reformular a sua resposta perante o filósofo.\n\n"
         "Devolva EXATAMENTE o seguinte formato JSON, sem crases e sem texto extra:\n"
         "{\n"
         '  "perfil_cognitivo": "crítico" | "dogmático" | "superficial",\n'
@@ -29,9 +30,9 @@ def analisar_turno_com_qwen(mensagem_jogador: str, resposta_filosofo: str) -> di
     conteudo_analise = f"{prompt_sistema}\n\nJogador: {mensagem_jogador}\nFilósofo: {resposta_filosofo}"
 
     try:
-        # Força o modelo a responder exclusivamente em JSON usando a nova biblioteca
+        # Usa o modelo 1.5-flash forçando a saída em JSON
         response = client.models.generate_content(
-            model='gemini-2.0-flash',
+            model='gemini-1.5-flash',
             contents=conteudo_analise,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",

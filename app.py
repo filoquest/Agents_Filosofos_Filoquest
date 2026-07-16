@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import List, Dict
 from google import genai
 
-# Importando as lógicas dos seus arquivos
+# Importando as lógicas dos seus ficheiros
 from motores_filosoficos import conversar_com_filosofo, PERSONAS_FILOSOFICAS
 from avaliador_cognitivo import analisar_turno_com_qwen
 
@@ -35,22 +35,23 @@ class TurnoRequest(BaseModel):
 def selecionar_filosofo_automatico(mensagem_aluno: str) -> str:
     """
     IA Inteligente: Avalia a resposta do aluno e escolhe o filósofo que vai
-    gerar o melhor embate ou contra-ponto ético para desafiar o pensamento dele.
+    gerar o melhor embate ou contraponto ético para desafiar o pensamento dele.
     """
     prompt = (
         "Você é o orquestrador do jogo educativo 'O Gabarito'. Um aluno deu a seguinte justificativa "
-        "para ter agido (ou não) em uma trapaça escolar com gabaritos:\n"
+        "para ter agido (ou não) numa trapaça escolar com gabaritos:\n"
         f"'{mensagem_aluno}'\n\n"
-        "Com base nisso, escolha qual filósofo seria o melhor debatedor para confrontar ou aprofundar "
-        "o pensamento desse aluno:\n"
+        "Com base nisto, escolha qual filósofo seria o melhor debatedor para confrontar ou aprofundar "
+        "o pensamento deste aluno:\n"
         "- 'kant' (Se o aluno foi muito egoísta, utilitarista ou focou nas consequências)\n"
         "- 'mill' (Se o aluno agiu por regras cegas, medo puro ou desconsiderou a felicidade geral)\n"
         "- 'aristoteles' (Se o aluno focou em amizade distorcida ou falta de virtude de caráter)\n\n"
         "Responda APENAS com a palavra chave em letras minúsculas: kant, mill ou aristoteles."
     )
     try:
+        # Uso do modelo 1.5-flash para evitar limites de cota (Rate Limit)
         response = client.models.generate_content(
-            model='gemini-2.0-flash',
+            model='gemini-1.5-flash',
             contents=prompt
         )
         escolha = response.text.strip().lower()
@@ -98,7 +99,7 @@ async def processar_turno(request: TurnoRequest):
     except Exception as e:
         print(f"Erro no servidor: {str(e)}")
         return {
-            "fala_filosofo": "Houve uma perturbação na linha de raciocínio. Os filósofos se retiraram.",
+            "fala_filosofo": "Houve uma perturbação na linha de raciocínio. Os filósofos retiraram-se.",
             "filosofo_nome": "A Direção",
             "analise": {"perfil_cognitivo": "indeterminado", "proximo_estado": "manter_fase"}
         }

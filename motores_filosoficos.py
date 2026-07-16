@@ -4,6 +4,7 @@ from google import genai
 # Puxa a chave explicitamente do ambiente e injeta no Cliente
 chave_api = os.environ.get("GEMINI_API_KEY")
 client = genai.Client(api_key=chave_api)
+
 # =====================================================================
 # CONFIGURAÇÃO DOS AGENTES ADAPTADA PARA "O GABARITO"
 # =====================================================================
@@ -41,7 +42,7 @@ PERSONAS_FILOSOFICAS = {
             "- Regra 2: A virtude moral está no 'justo meio' (a justa medida) entre dois extremos viciosos (o excesso e a falta). A honestidade "
             "e a justiça são excelências que devem ser cultivadas pelo hábito prático.\n"
             "- Regra 3: Questione o aluno sobre que tipo de caráter ele está construindo para si mesmo e se ele está ajudando "
-            "o seu amigo a florescer em direção à felicidade real (Eudaimonia) ou a se acomodar nos vícios da negligência e da mentira.\n"
+            "o seu amigo a florescer em direção à felicidade real (Eudaimonia) ou a acomodar-se nos vícios da negligência e da mentira.\n"
             "Seja reflexivo, equilibrado, pedagógico e use o tom de um mentor sábio. Limite sua resposta a dois ou três parágrafos curtos."
         )
     }
@@ -50,8 +51,8 @@ PERSONAS_FILOSOFICAS = {
 
 def conversar_com_filosofo(filosofo_chave: str, historico_chat: list) -> str:
     """
-    Transforma o histórico do Twine em um script de teatro para evitar erros de bloqueio do Google,
-    e gera a resposta usando o novo SDK.
+    Transforma o histórico do Twine num guião de teatro para evitar erros de bloqueio do Google,
+    e gera a resposta usando o modelo 1.5-flash.
     """
     if filosofo_chave not in PERSONAS_FILOSOFICAS:
         raise ValueError(f"Filósofo '{filosofo_chave}' não está configurado.")
@@ -59,7 +60,7 @@ def conversar_com_filosofo(filosofo_chave: str, historico_chat: list) -> str:
     config = PERSONAS_FILOSOFICAS[filosofo_chave]
     instrucao_sistema = config["system_prompt"]
 
-    # Transforma a lista de dicionários em um texto contínuo (Blindagem contra erros do Gemini)
+    # Transforma a lista de dicionários num texto contínuo (Blindagem)
     transcricao = ""
     for msg in historico_chat:
         quem = "Aluno" if msg["role"] == "user" else "Filósofo"
@@ -68,9 +69,9 @@ def conversar_com_filosofo(filosofo_chave: str, historico_chat: list) -> str:
     prompt_completo = f"Instruções de Personalidade:\n{instrucao_sistema}\n\nHistórico da Conversa até agora:\n{transcricao}\n\nResponda agora como o Filósofo:"
 
     try:
-        # Usa o modelo Flash mais recente (2.0)
+        # Usa o modelo 1.5-flash garantindo estabilidade no plano gratuito
         response = client.models.generate_content(
-            model='gemini-2.0-flash',
+            model='gemini-1.5-flash',
             contents=prompt_completo
         )
         return response.text
