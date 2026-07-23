@@ -1,22 +1,18 @@
 import os
-import warnings
-
-warnings.filterwarnings("ignore", category=FutureWarning)
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict
-import google.generativeai as genai
+from google import genai
 
 from motores_filosoficos import conversar_com_filosofo, PERSONAS_FILOSOFICAS
 from avaliador_cognitivo import analisar_turno_com_qwen
 
 app = FastAPI(title="Motor Agente FiloQuest API")
 
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-# O modelo oficial atual do plano gratuito
-modelo_orquestrador = genai.GenerativeModel('gemini-1.5-flash')
+# Usando a biblioteca moderna oficial do Google
+chave_api = os.environ.get("GEMINI_API_KEY")
+client = genai.Client(api_key=chave_api)
 
 ORIGENS_PERMITIDAS = ["https://filoquest.uern.br", "https://educapes.capes.gov.br", "*"]
 app.add_middleware(
@@ -45,8 +41,12 @@ def selecionar_filosofo_automatico(mensagem_aluno: str) -> str:
         "Responda APENAS com a palavra chave em letras minúsculas: kant, mill ou aristoteles."
     )
     try:
-        resposta = modelo_orquestrador.generate_content(prompt)
-        escolha = resposta.text.strip().lower()
+        # Usando o modelo gratuito oficial de 2026 (Gemini 3 Flash)
+        response = client.models.generate_content(
+            model='gemini-3-flash',
+            contents=prompt
+        )
+        escolha = response.text.strip().lower()
         if escolha in ['kant', 'mill', 'aristoteles']:
             return escolha
     except Exception as e:
@@ -63,9 +63,7 @@ async def processar_turno(request: TurnoRequest):
             filosofo_escolhido = selecionar_filosofo_automatico(request.mensagem_jogador)
 
         nome_exibicao = PERSONAS_FILOSOFICAS[filosofo_escolhido]["nome"]
-
         resposta_filosofo = conversar_com_filosofo(filosofo_escolhido, request.historico)
-
         analise_cognitiva = analisar_turno_com_qwen(request.mensagem_jogador, resposta_filosofo)
 
         return {
